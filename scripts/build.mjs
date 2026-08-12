@@ -91,24 +91,12 @@ copyFileSync(
 );
 
 // --- root index.js ----------------------------------------------------------
+// Requires globalThis.Temporal: native on modern runtimes; on older ones,
+// install a Temporal polyfill of your choice and assign globalThis.Temporal
+// before loading this module.
 writeFileSync(
     join(root, 'index.js'),
-    banner +
-        `if (!globalThis.Temporal) {
-    try {
-        // Convenience only: pick up the optional peer polyfill when the
-        // consumer installed it. The dynamic specifier keeps bundlers from
-        // treating this as a hard dependency.
-        var temporalPolyfillId = '@js-temporal/polyfill';
-        globalThis.Temporal = require(temporalPolyfillId).Temporal;
-    } catch (e) {
-        // No Temporal and no polyfill installed: the library throws a
-        // descriptive error on first use. Install any Temporal polyfill and
-        // assign globalThis.Temporal, or use a runtime with native Temporal.
-    }
-}
-module.exports = require('./moment-timezone.js');
-`
+    banner + `module.exports = require('./moment-timezone.js');\n`
 );
 
 // --- CJS locales (lazy-loaded by moment.locale() in Node) -------------------

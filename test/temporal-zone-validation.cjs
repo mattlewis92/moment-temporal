@@ -11,6 +11,11 @@
 // every disagreement for inspection.
 'use strict';
 
+// The library takes no polyfill stance; the test environment supplies one.
+if (!globalThis.Temporal) {
+    globalThis.Temporal = require('@js-temporal/polyfill').Temporal;
+}
+
 const path = require('path');
 const fs = require('fs');
 const root = path.join(__dirname, '..');

@@ -8,8 +8,13 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
+// The library takes no polyfill stance; the test environment supplies one.
+if (!globalThis.Temporal) {
+    globalThis.Temporal = require('@js-temporal/polyfill').Temporal;
+}
+
 const root = path.join(__dirname, '..', '..');
-const moment = require(root); // installs Temporal polyfill if needed
+const moment = require(root);
 const data = require(path.join(root, 'data/packed/latest.json'));
 
 // Same execution order as upstream's Gruntfile (zones, countries, core):

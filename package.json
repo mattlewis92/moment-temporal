@@ -58,11 +58,6 @@
       "require": "./index.js",
       "default": "./index.js"
     },
-    "./polyfill": {
-      "import": "./src/polyfill.js",
-      "require": "./polyfill.cjs",
-      "default": "./polyfill.cjs"
-    },
     "./locale/*.js": {
       "import": "./src/locale/*.js",
       "require": "./locale/*.js",
@@ -92,7 +87,6 @@
     "moment-timezone.d.ts",
     "moment-timezone-utils.js",
     "moment-timezone-utils.d.ts",
-    "polyfill.cjs",
     "LICENSE",
     "THIRD-PARTY-NOTICES.md"
   ],
@@ -105,14 +99,6 @@
     "test:locale": "node --test --test-concurrency=8 'src/test/locale/*.js'",
     "test:tz": "node test/tz/run.cjs",
     "test:validate": "node test/temporal-zone-validation.cjs"
-  },
-  "peerDependencies": {
-    "@js-temporal/polyfill": "^0.5.0"
-  },
-  "peerDependenciesMeta": {
-    "@js-temporal/polyfill": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "@js-temporal/polyfill": "^0.5.1",

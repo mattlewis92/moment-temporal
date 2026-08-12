@@ -47,16 +47,24 @@ The library needs `globalThis.Temporal`:
 
 - **Available natively**: Node ≥ 25 (and recent Deno / Firefox; other engines
   are shipping it). Nothing to do, nothing extra to ship.
-- **Everywhere else**: bring your own polyfill — none is installed by
-  default (`@js-temporal/polyfill` is an *optional* peer dependency). Either
-  install any Temporal polyfill and assign `globalThis.Temporal` yourself
-  (e.g. [`temporal-polyfill`](https://github.com/fullcalendar/temporal-polyfill)
-  is a lighter alternative), or install
+- **Everywhere else**: bring your own polyfill and assign it before loading
+  the library — this package has no polyfill dependency and no opinion about
+  which one you use. For example, with
   [`@js-temporal/polyfill`](https://github.com/js-temporal/temporal-polyfill)
-  and use the built-in hookup:
-  - CJS: `require('moment-temporal')` picks it up automatically when it is
-    installed;
-  - ESM: `import 'moment-temporal/polyfill'` before the library.
+  (or the lighter
+  [`temporal-polyfill`](https://github.com/fullcalendar/temporal-polyfill)):
+
+  ```js
+  // setup-temporal.js
+  import { Temporal } from '@js-temporal/polyfill';
+  globalThis.Temporal ??= Temporal;
+  ```
+
+  ```js
+  // your entry module
+  import './setup-temporal.js';
+  import moment from 'moment-timezone'; // aliased to moment-temporal
+  ```
 
 Without `globalThis.Temporal` the library throws a descriptive error on first
 use. The full bundle-size win arrives with native Temporal (already in

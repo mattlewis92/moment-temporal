@@ -65,6 +65,7 @@ jobs:
         working-directory: /tmp/consumer
         run: |
           cat > smoke.cjs <<'EOF'
+          globalThis.Temporal ??= require('@js-temporal/polyfill').Temporal;
           const assert = require('assert');
           const moment = require('moment-timezone');
           assert.equal(typeof moment, 'function');
@@ -80,9 +81,10 @@ jobs:
           EOF
           node smoke.cjs
           cat > smoke.mjs <<'EOF'
-          import 'moment-timezone/polyfill';
-          import moment from 'moment-timezone';
-          import 'moment-timezone/locale/fr';
+          import { Temporal } from '@js-temporal/polyfill';
+          globalThis.Temporal ??= Temporal;
+          const { default: moment } = await import('moment-timezone');
+          await import('moment-timezone/locale/fr');
           import assert from 'node:assert';
           assert.equal(moment('2024-01-15').locale('fr').format('dddd'), 'lundi');
           assert.equal(moment.tz('2024-01-15 12:00', 'America/New_York').zoneAbbr(), 'EST');
