@@ -5,9 +5,10 @@ name: Release
 # Routine commits that don't bump the version are a no-op.
 #
 # One-time setup on npmjs.com (package → Settings → Trusted Publisher):
-#   publisher: GitHub Actions
-#   repository: mattlewis92/moment-temporal
-#   workflow:   release.yml
+#   publisher:   GitHub Actions
+#   repository:  mattlewis92/moment-temporal
+#   workflow:    release.yml
+#   environment: release   (the repo environment is restricted to main)
 # Provenance attestations are generated automatically for trusted publishes.
 
 on:
@@ -23,6 +24,10 @@ permissions: {}
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Repo environment restricted to deployments from main — combined with the
+    # npm trusted publisher's environment binding, publishes cannot be
+    # triggered from any other branch or workflow.
+    environment: release
     permissions:
       contents: write # push the release tag
       id-token: write # OIDC token exchange for npm trusted publishing
