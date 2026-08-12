@@ -1,0 +1,116 @@
+{
+  "name": "moment-temporal",
+  "version": "0.6.3",
+  "description": "Drop-in replacement for moment + moment-timezone reimplemented on the Temporal API. Full API and test-suite compatibility, zero bundled timezone data.",
+  "license": "MIT",
+  "author": "Matt Lewis",
+  "keywords": [
+    "moment",
+    "moment-timezone",
+    "temporal",
+    "date",
+    "time",
+    "timezone",
+    "tz"
+  ],
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./src/tz/moment-timezone.js",
+      "require": "./index.js",
+      "default": "./index.js"
+    },
+    "./index.js": {
+      "types": "./index.d.ts",
+      "import": "./src/tz/moment-timezone.js",
+      "require": "./index.js",
+      "default": "./index.js"
+    },
+    "./moment-timezone": {
+      "types": "./moment-timezone.d.ts",
+      "import": "./src/tz/moment-timezone.js",
+      "require": "./moment-timezone.js",
+      "default": "./moment-timezone.js"
+    },
+    "./moment-timezone.js": {
+      "types": "./moment-timezone.d.ts",
+      "import": "./src/tz/moment-timezone.js",
+      "require": "./moment-timezone.js",
+      "default": "./moment-timezone.js"
+    },
+    "./moment-timezone-utils": {
+      "types": "./moment-timezone-utils.d.ts",
+      "import": "./src/tz/moment-timezone-utils.js",
+      "require": "./moment-timezone-utils.js",
+      "default": "./moment-timezone-utils.js"
+    },
+    "./moment-timezone-utils.js": {
+      "types": "./moment-timezone-utils.d.ts",
+      "import": "./src/tz/moment-timezone-utils.js",
+      "require": "./moment-timezone-utils.js",
+      "default": "./moment-timezone-utils.js"
+    },
+    "./moment": {
+      "types": "./moment.d.ts",
+      "import": "./src/moment.js",
+      "require": "./index.js",
+      "default": "./index.js"
+    },
+    "./polyfill": {
+      "import": "./src/polyfill.js",
+      "require": "./polyfill.cjs",
+      "default": "./polyfill.cjs"
+    },
+    "./locale/*.js": {
+      "import": "./src/locale/*.js",
+      "require": "./locale/*.js",
+      "default": "./locale/*.js"
+    },
+    "./locale/*": {
+      "import": "./src/locale/*.js",
+      "require": "./locale/*.js",
+      "default": "./locale/*.js"
+    },
+    "./builds/*": "./builds/*",
+    "./data/*": "./data/*",
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "!src/test",
+    "locale",
+    "builds",
+    "data",
+    "dist",
+    "index.js",
+    "index.d.ts",
+    "moment.d.ts",
+    "moment-timezone.js",
+    "moment-timezone.d.ts",
+    "moment-timezone-utils.js",
+    "moment-timezone-utils.d.ts",
+    "polyfill.cjs",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md"
+  ],
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "build": "node scripts/build.mjs",
+    "prepack": "node scripts/build.mjs",
+    "test": "npm run build && npm run test:moment && npm run test:locale && npm run test:tz && npm run test:validate",
+    "test:moment": "node --test --test-concurrency=8 'src/test/moment/*.js'",
+    "test:locale": "node --test --test-concurrency=8 'src/test/locale/*.js'",
+    "test:tz": "node test/tz/run.cjs",
+    "test:validate": "node test/temporal-zone-validation.cjs"
+  },
+  "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1"
+  },
+  "devDependencies": {
+    "tsdown": "^0.22.14",
+    "typescript": "^7.0.2"
+  }
+}

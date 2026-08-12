@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: node ${{ matrix.node }} / TZ=${{ matrix.tz }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.x', '24.x']
+        # moment semantics depend on the host timezone; run the full matrix
+        # in a DST-free zone, a northern DST zone, and a southern DST zone.
+        # (Not Australia/Sydney: upstream's "parsing iso" test hardcodes one
+        # offset for 2011-10-01..08, and Sydney's 2011 DST start falls inside
+        # that window — real moment fails its own suite there too.)
+        tz: ['UTC', 'America/New_York', 'Pacific/Auckland']
+    env:
+      TZ: ${{ matrix.tz }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      # builds the root CJS bundles, locales, browser builds and ESM dist,
+      # then runs: moment core suite, locale suite (139 files), the
+      # moment-timezone suites (zones/countries/core), and the Temporal
+      # fallback vs tzdata validation
+      - run: npm test
+
+  package:
+    name: package smoke test (drop-in alias)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      # consume the built package the way a real project does:
+      # "moment-timezone": "npm:moment-temporal"
+      - name: install as aliased dependency
+        run: |
+          mkdir -p /tmp/consumer && cd /tmp/consumer
+          npm init -y > /dev/null
+          npm install "moment-timezone@file:$GITHUB_WORKSPACE" --no-fund
+
+      - name: smoke test CJS + ESM + subpaths
+        working-directory: /tmp/consumer
+        run: |
+          cat > smoke.cjs <<'EOF'
+          const assert = require('assert');
+          const moment = require('moment-timezone');
+          assert.equal(typeof moment, 'function');
+          assert.equal(moment.tz('2024-07-04 12:00', 'America/New_York').format(), '2024-07-04T12:00:00-04:00');
+          moment.locale('de'); // lazy CJS locale auto-load
+          assert.equal(moment('2024-01-15').format('dddd'), 'Montag');
+          moment.locale('en');
+          const data = require('moment-timezone/data/packed/latest.json');
+          moment.tz.load(data);
+          assert.equal(moment.tz('2024-12-25', 'Australia/Sydney').format('z'), 'AEDT');
+          assert.equal(typeof require('moment-timezone/moment-timezone-utils').tz.pack, 'function');
+          console.log('cjs smoke ok');
+          EOF
+          node smoke.cjs
+          cat > smoke.mjs <<'EOF'
+          import 'moment-timezone/polyfill';
+          import moment from 'moment-timezone';
+          import 'moment-timezone/locale/fr';
+          import assert from 'node:assert';
+          assert.equal(moment('2024-01-15').locale('fr').format('dddd'), 'lundi');
+          assert.equal(moment.tz('2024-01-15 12:00', 'America/New_York').zoneAbbr(), 'EST');
+          console.log('esm smoke ok');
+          EOF
+          node smoke.mjs
