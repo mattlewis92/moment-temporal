@@ -1,6 +1,6 @@
 {
   "name": "moment-temporal",
-  "version": "0.6.3",
+  "version": "0.0.1",
   "description": "Drop-in replacement for moment + moment-timezone reimplemented on the Temporal API. Full API and test-suite compatibility, zero bundled timezone data.",
   "license": "MIT",
   "author": "Matt Lewis",
@@ -78,7 +78,8 @@
     "!src/test",
     "locale",
     "builds",
-    "data",
+    "data/meta/latest.json",
+    "data/packed/latest.json",
     "dist",
     "index.js",
     "index.d.ts",
