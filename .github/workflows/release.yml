@@ -1,0 +1,73 @@
+name: Release
+
+# Publishes to npm via OIDC trusted publishing (no tokens) whenever a commit
+# on main carries a package.json version that isn't on the registry yet.
+# Routine commits that don't bump the version are a no-op.
+#
+# One-time setup on npmjs.com (package → Settings → Trusted Publisher):
+#   publisher: GitHub Actions
+#   repository: mattlewis92/moment-temporal
+#   workflow:   release.yml
+# Provenance attestations are generated automatically for trusted publishes.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the release tag
+      id-token: write # OIDC token exchange for npm trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          # NOTE: no registry-url here — setup-node would write a
+          # token-placeholder .npmrc, which breaks tokenless OIDC publishing.
+
+      # trusted publishing requires npm >= 11.5.1 (Node 22 bundles npm 10)
+      - run: npm install -g npm@latest
+
+      - run: npm ci
+
+      # full gate before anything reaches the registry: build + moment core,
+      # locale, and moment-timezone suites + tzdata validation
+      - run: npm test
+
+      - name: check whether this version is already published
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if npm view "moment-temporal@$VERSION" version > /dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "moment-temporal@$VERSION already on the registry — nothing to do"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "moment-temporal@$VERSION is new — will publish"
+          fi
+
+      - name: publish
+        if: steps.version.outputs.published == 'false'
+        run: npm publish
+
+      - name: tag the release
+        if: steps.version.outputs.published == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v$VERSION" || true
+          git push origin "v$VERSION" || echo "tag already exists on remote"
