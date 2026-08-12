@@ -25,12 +25,12 @@ It also replaces plain `moment` (the default export *is* a full moment):
 
 ## Why
 
-| consumer bundle (esbuild, minified ESM)       |     raw |    gzip |
-| --------------------------------------------- | ------: | ------: |
-| `moment` + `moment-timezone` (with data)       |  783 KB | 59.2 KB |
-| **`moment-temporal`**                          | **74 KB** | **24.5 KB** |
-| `moment-temporal` + bundled Temporal polyfill  |  237 KB | 71.5 KB |
-| each additional locale (e.g. `de`)             | +1.5 KB | +0.7 KB |
+| consumer bundle (tsdown, minified ESM)                    |     raw |    gzip |
+| ---------------------------------------------------------- | ------: | ------: |
+| `moment` + `moment-timezone` (with data)                    |  781 KB | 58.7 KB |
+| **`moment-temporal`**                                       | **73 KB** | **24.5 KB** |
+| `@js-temporal/polyfill`, if your targets need one (opt-in)  | +163 KB | +47 KB |
+| each additional locale (e.g. `de`)                          | +1.6 KB | +0.7 KB |
 
 - **No timezone data in your bundle.** Offsets, transitions and DST rules come
   from the runtime's own IANA database (the same one `Intl.DateTimeFormat`
@@ -46,18 +46,22 @@ It also replaces plain `moment` (the default export *is* a full moment):
 The library needs `globalThis.Temporal`:
 
 - **Available natively**: Node ≥ 25 (and recent Deno / Firefox; other engines
-  are shipping it).
-- **Everywhere else**: the [`@js-temporal/polyfill`](https://github.com/js-temporal/temporal-polyfill)
-  is a regular dependency.
-  - the CJS entry (`require('moment-temporal')`) installs it automatically
-    when `globalThis.Temporal` is missing;
-  - ESM users on older runtimes import the tiny installer entry first:
-    `import 'moment-temporal/polyfill'`.
+  are shipping it). Nothing to do, nothing extra to ship.
+- **Everywhere else**: bring your own polyfill — none is installed by
+  default (`@js-temporal/polyfill` is an *optional* peer dependency). Either
+  install any Temporal polyfill and assign `globalThis.Temporal` yourself
+  (e.g. [`temporal-polyfill`](https://github.com/fullcalendar/temporal-polyfill)
+  is a lighter alternative), or install
+  [`@js-temporal/polyfill`](https://github.com/js-temporal/temporal-polyfill)
+  and use the built-in hookup:
+  - CJS: `require('moment-temporal')` picks it up automatically when it is
+    installed;
+  - ESM: `import 'moment-temporal/polyfill'` before the library.
 
-The polyfill costs ~47 KB gzipped in a browser bundle, so the full bundle-size
-win arrives with native Temporal (already in Firefox, in progress in
-Chrome/Safari, shipped in Node 25). On runtimes with native Temporal you pay
-nothing.
+Without `globalThis.Temporal` the library throws a descriptive error on first
+use. The full bundle-size win arrives with native Temporal (already in
+Firefox and Node 25, in progress in Chrome/Safari) — there you ship no
+polyfill at all.
 
 ## Compatibility
 
@@ -87,17 +91,34 @@ so version sniffing by dependents keeps working.
    `population`), including moment-timezone's exact
    `moveInvalidForward`/`moveAmbiguousForward` DST disambiguation semantics.
 
-`data/` ships in the npm package (it is **never** imported by the entry
-points, so it costs bundles nothing): `require('moment-timezone/data/packed/latest.json')`
-keeps working, and loading it restores byte-for-byte upstream behavior where
-the divergences below matter.
+### Does it still ship IANA data?
+
+The tz data *files* are included in the npm package on disk (`data/`), purely
+for compatibility — **no entry point ever imports them**, so they are never
+in your bundle and never parsed at runtime. All timezone math works without
+them because the runtime's own IANA database (the one `Intl` uses, kept
+current by OS/browser updates) supplies offsets and transitions through
+Temporal.
+
+"Loaded data" means you explicitly opted in, exactly like upstream's
+data-loading API:
+
+```js
+moment.tz.load(require('moment-timezone/data/packed/latest.json'));
+```
+
+Doing so restores byte-for-byte upstream behavior where the divergences below
+matter (name/country enumeration, tzdata abbreviation strings) — at upstream's
+bundle cost.
 
 ### Documented divergences (without loaded data)
 
-- `moment.tz.names()` and `moment.tz.countries()` list only *loaded* data —
-  they return `[]` when nothing was loaded (the upstream default entry ships
-  with all names preloaded). Zone→country mappings aren't exposed by `Intl`,
-  so `zone.countries()` also needs loaded data.
+- `moment.tz.names()` and `moment.tz.countries()` enumerate the *loaded*
+  registry — they return `[]` when nothing was loaded (upstream's default
+  entry preloads every name). Any zone still resolves directly by name; for
+  enumeration without data, `Intl.supportedValuesOf('timeZone')` is the
+  platform's list. Zone→country mappings aren't exposed by any web API, so
+  `zone.countries()`/`zonesForCountry()` genuinely need loaded data.
 - Zone **abbreviations** (`z`/`zz` tokens) are ICU-derived: familiar ones like
   `EST`/`EDT`/`GMT`/`BST` match tzdata, but zones for which ICU only offers a
   localized GMT offset render numerically (`+04`, `+0530`, `AEDT` → `+11`).
@@ -108,6 +129,27 @@ the divergences below matter.
   horizon).
 - Timezone data reflects the *host's* tzdb version, which may differ from the
   latest IANA release (usually newer than what an app was shipping!).
+
+### Why locale files instead of Intl?
+
+`Intl` can render localized month and weekday names, and
+`Intl.RelativeTimeFormat` covers some relative time — but moment's locale
+behavior is *not* CLDR, and a drop-in replacement has to reproduce moment's
+exact strings (the 3262 ported locale tests pin them). Locale files carry
+what `Intl` cannot supply:
+
+- moment's community-authored phrasing — `"vor ein paar Sekunden"`, where
+  `Intl` would say `"vor 3 Sekunden"`;
+- calendar phrases (`"Last Monday at 8:30 PM"`) and per-locale `L`/`LL`/`LLL`
+  long-format patterns;
+- ordinal suffix strings (`"31st"`, `"1er"` — `Intl.PluralRules` classifies
+  ordinals but provides no suffixes);
+- **parsing** tables: turning `"3 de enero"` or Arabic-digit input back into a
+  date, with moment's exact strict/lenient rules, `preparse`/`postformat`
+  digit maps, meridiem tables, locale week rules (`dow`/`doy`), and eras.
+
+They're opt-in and tree-shaken: you pay ~0.7 KB gzipped per locale you
+actually import; `en` is built in.
 
 ### Architectural notes
 
@@ -128,7 +170,7 @@ the divergences below matter.
 
 ```bash
 npm run vendor   # re-vendor tests/locales/data from upstream checkouts
-npm run build    # root CJS bundles, CJS locales, browser builds, ESM dist
+npm run build    # tsdown (rolldown): root CJS bundles, CJS locales, browser builds, ESM dist
 npm test         # build + all four suites + tzdata validation
 ```
 

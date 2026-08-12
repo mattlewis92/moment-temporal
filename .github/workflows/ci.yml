@@ -57,7 +57,9 @@ jobs:
         run: |
           mkdir -p /tmp/consumer && cd /tmp/consumer
           npm init -y > /dev/null
-          npm install "moment-timezone@file:$GITHUB_WORKSPACE" --no-fund
+          # the Temporal polyfill is an optional peer: consumers on runtimes
+          # without native Temporal install one themselves
+          npm install "moment-timezone@file:$GITHUB_WORKSPACE" @js-temporal/polyfill --no-fund
 
       - name: smoke test CJS + ESM + subpaths
         working-directory: /tmp/consumer

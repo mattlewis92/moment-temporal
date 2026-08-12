@@ -106,10 +106,16 @@
     "test:tz": "node test/tz/run.cjs",
     "test:validate": "node test/temporal-zone-validation.cjs"
   },
-  "dependencies": {
-    "@js-temporal/polyfill": "^0.5.1"
+  "peerDependencies": {
+    "@js-temporal/polyfill": "^0.5.0"
+  },
+  "peerDependenciesMeta": {
+    "@js-temporal/polyfill": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
     "tsdown": "^0.22.14",
     "typescript": "^7.0.2"
   }

@@ -96,10 +96,15 @@ writeFileSync(
     banner +
         `if (!globalThis.Temporal) {
     try {
-        // Optional: only needed on runtimes without built-in Temporal.
-        globalThis.Temporal = require('@js-temporal/polyfill').Temporal;
+        // Convenience only: pick up the optional peer polyfill when the
+        // consumer installed it. The dynamic specifier keeps bundlers from
+        // treating this as a hard dependency.
+        var temporalPolyfillId = '@js-temporal/polyfill';
+        globalThis.Temporal = require(temporalPolyfillId).Temporal;
     } catch (e) {
-        // resolved lazily; the library throws a descriptive error on first use
+        // No Temporal and no polyfill installed: the library throws a
+        // descriptive error on first use. Install any Temporal polyfill and
+        // assign globalThis.Temporal, or use a runtime with native Temporal.
     }
 }
 module.exports = require('./moment-timezone.js');
