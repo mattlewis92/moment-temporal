@@ -95,12 +95,13 @@
     "vendor": "node scripts/vendor.mjs",
     "build": "node scripts/build.mjs",
     "prepack": "node scripts/build.mjs",
-    "test": "npm run build && npm run test:moment && npm run test:locale && npm run test:tz && npm run test:fallback && npm run test:validate",
+    "test": "npm run build && npm run test:moment && npm run test:locale && npm run test:tz && npm run test:fallback && npm run test:zone && npm run test:validate",
     "test:moment": "node --test --test-concurrency=8 'src/test/moment/*.js'",
     "test:locale": "node --test --test-concurrency=8 'src/test/locale/*.js'",
     "test:tz": "node test/tz/run.cjs",
     "test:validate": "node test/temporal-zone-validation.cjs",
-    "test:fallback": "node test/tz-fallback.cjs"
+    "test:fallback": "node test/tz-fallback.cjs",
+    "test:zone": "node test/system-zone.cjs"
   },
   "devDependencies": {
     "@js-temporal/polyfill": "^0.5.1",

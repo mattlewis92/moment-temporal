@@ -31,13 +31,44 @@ export function setTemporal(impl) {
     cachedTemporal = impl || null;
 }
 
-var systemZone = null;
+var systemZone = null,
+    systemZoneOffset = null;
 
+// The current host time zone. Upstream moment observes the host zone on
+// every call (it reads local fields off Date prototype methods), so a cache
+// here must never latch: long-lived processes change TZ, and test harnesses
+// pin the zone by patching Date. Reading the zone id is expensive (~29µs on
+// the polyfill — an Intl.DateTimeFormat construction), so it is cached
+// behind Date#getTimezoneOffset (~150ns) as the invalidation signal — the
+// exact API Date-based zone mocks patch.
+//
+// Known limit of the signal: switching between two zones that currently
+// share an offset (America/New_York -> America/Toronto in winter) goes
+// unnoticed until their offsets diverge. Nothing cheaper can distinguish
+// them, and moment's own local-mode math is offset-driven, so this only
+// affects zone *identity* reads against historically-divergent zones.
 export function systemZoneId() {
-    if (systemZone === null) {
-        systemZone = T().Now.timeZoneId();
+    var offset = new Date().getTimezoneOffset();
+    if (systemZone === null || offset !== systemZoneOffset) {
+        systemZone = readHostZoneId();
+        systemZoneOffset = offset;
     }
     return systemZone;
+}
+
+function readHostZoneId() {
+    // Prefer Intl: it reports the same zone as Temporal.Now, but stays
+    // observable by harnesses that patch the Intl global (native
+    // Temporal.Now.timeZoneId cannot see patched JS globals).
+    try {
+        var name = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (name) {
+            return name;
+        }
+    } catch (e) {
+        // fall through
+    }
+    return T().Now.timeZoneId();
 }
 
 // Fixed utc-offset minutes -> Temporal offset time zone identifier.

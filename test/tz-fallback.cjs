@@ -41,6 +41,13 @@ function guessIn(tz) {
 check(guessIn('UTC')[0], 'UTC', 'guess under TZ=UTC');
 check(guessIn('UTC')[1], '+00:00', 'guess under TZ=UTC chains into .tz()');
 check(guessIn('GMT')[0], 'UTC', 'guess under TZ=GMT normalizes to UTC');
+// hosts may canonicalize Etc/UTC to UTC before reporting it — either is a
+// real, resolvable IANA name
+assert.ok(
+    ['UTC', 'Etc/UTC'].includes(guessIn('Etc/UTC')[0]),
+    'guess under TZ=Etc/UTC: ' + guessIn('Etc/UTC')[0]
+);
+pass++;
 check(
     guessIn('Europe/London')[0],
     'Europe/London',
@@ -112,5 +119,29 @@ try {
     moment.tz.setDefault(null);
     moment.suppressDeprecationWarnings = oldSuppress;
 }
+
+// --- typings regression ------------------------------------------------------
+// moment.d.ts must be the ts3.1 variant of moment's typings (the top-level
+// file upstream is dead legacy behind typesVersions): MomentInput accepts
+// null/undefined, and the UMD-global namespace export is preserved.
+const dts = require('fs').readFileSync(
+    path.join(root, 'moment.d.ts'),
+    'utf8'
+);
+check(
+    dts.includes('export as namespace moment;'),
+    true,
+    'typings: export as namespace moment'
+);
+check(
+    /type\s+MomentInput\s*=[^;]*\|\s*null\s*\|\s*undefined/.test(dts),
+    true,
+    'typings: MomentInput includes null | undefined'
+);
+check(
+    /type\s+MomentInput\s*=[^;]*\|\s*void/.test(dts),
+    false,
+    'typings: MomentInput is not the legacy | void variant'
+);
 
 console.log('tz-fallback: ' + pass + ' checks passed');
