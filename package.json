@@ -106,5 +106,13 @@
     "@js-temporal/polyfill": "^0.5.1",
     "tsdown": "^0.22.14",
     "typescript": "^7.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mattlewis92/moment-temporal.git"
+  },
+  "homepage": "https://github.com/mattlewis92/moment-temporal#readme",
+  "bugs": {
+    "url": "https://github.com/mattlewis92/moment-temporal/issues"
   }
 }
