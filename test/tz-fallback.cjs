@@ -120,6 +120,38 @@ try {
     moment.suppressDeprecationWarnings = oldSuppress;
 }
 
+// --- seeded name registry: tz.names() parity without loaded data ------------
+// The name/link registries are seeded at import from a generated table, so
+// tz.names() matches upstream's data-shipping entry. Country data stays
+// load-only by design.
+const packed = require(path.join(root, 'data/packed/latest.json'));
+const expectedNames = packed.zones
+    .map((z) => z.split('|')[0])
+    .concat(packed.links.map((l) => l.split('|')[1]))
+    .sort();
+assert.deepStrictEqual(
+    moment.tz.names(),
+    expectedNames,
+    'tz.names() matches the packed name list exactly'
+);
+pass++;
+check(
+    moment.tz.zone('US/Eastern').name,
+    'US/Eastern',
+    'link alias keeps its own name'
+);
+check(
+    moment.tz('2024-01-15', 'US/Eastern').format('z'),
+    'EST',
+    'link alias resolves to the target zone'
+);
+assert.deepStrictEqual(
+    moment.tz.countries(),
+    [],
+    'tz.countries() stays load-only'
+);
+pass++;
+
 // --- typings regression ------------------------------------------------------
 // moment.d.ts must be the ts3.1 variant of moment's typings (the top-level
 // file upstream is dead legacy behind typesVersions): MomentInput accepts

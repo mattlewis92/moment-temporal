@@ -5,6 +5,7 @@
 //! tz.load) is fully supported and takes precedence when used.
 import moment from '../moment.js';
 import { TemporalZone, resolveZoneId } from './temporal-zone.js';
+import { zoneNames as seedZoneNames, links as seedLinks } from './seed-data.js';
 
 var VERSION = '0.6.3',
     zones = {},
@@ -466,6 +467,19 @@ function addZone(packed) {
     }
 }
 
+// Resolve a name through the host's IANA database via Temporal, cached
+// separately from the packed-data registries.
+function getTemporalZone(name, rawName) {
+    if (temporalZones[name] !== undefined) {
+        return temporalZones[name];
+    }
+    var zoneId = resolveZoneId(names[name] || rawName);
+    temporalZones[name] = zoneId
+        ? new TemporalZone(names[name] || zoneId, zoneId)
+        : null;
+    return temporalZones[name];
+}
+
 function getZone(name, caller) {
     var rawName = name;
     name = normalizeName(name);
@@ -473,8 +487,15 @@ function getZone(name, caller) {
     var zone = zones[name];
     var link;
 
-    if (zone instanceof Zone) {
+    if (zone instanceof Zone || zone instanceof TemporalZone) {
         return zone;
+    }
+
+    // A seeded (name-only) registry entry: the name is listed, the zone
+    // itself resolves through the host database. Takes priority over the
+    // links table, like a packed string does upstream.
+    if (zone === SEED) {
+        return getTemporalZone(name, rawName);
     }
 
     if (typeof zone === 'string') {
@@ -489,21 +510,22 @@ function getZone(name, caller) {
         caller !== getZone &&
         (link = getZone(links[name], getZone))
     ) {
-        zone = zones[name] = new Zone();
-        zone._set(link);
-        zone.name = names[name];
+        if (link instanceof TemporalZone) {
+            // alias of a host-resolved zone: same zone id, alias's name
+            zone = zones[name] = new TemporalZone(
+                names[name] || rawName,
+                link._zoneId
+            );
+        } else {
+            zone = zones[name] = new Zone();
+            zone._set(link);
+            zone.name = names[name];
+        }
         return zone;
     }
 
-    // No packed data for this name: resolve through the host's IANA
-    // database via Temporal. Cached separately so the data registries
-    // (_zones/_names, tz.names()) keep reflecting loaded data only.
-    if (temporalZones[name] !== undefined) {
-        return temporalZones[name];
-    }
-    var zoneId = resolveZoneId(names[name] || rawName);
-    temporalZones[name] = zoneId ? new TemporalZone(zoneId, zoneId) : null;
-    return temporalZones[name];
+    // No packed data and no seed for this name.
+    return getTemporalZone(name, rawName);
 }
 
 function getNames() {
@@ -615,6 +637,31 @@ function logError(message) {
         console.error(message);
     }
 }
+
+/************************************
+    Host-registry seeding
+************************************/
+
+// Upstream's default entry ships with packed data preloaded, so its name
+// registry starts populated. This build ships no offset timelines, but
+// seeds the name/link registries from a generated table, so tz.names()
+// matches upstream out of the box. (Country data stays load-only:
+// tz.countries()/zonesForCountry() require tz.load().) The SEED sentinel
+// marks name-only entries whose zone math resolves through the host
+// database on demand; tz.add()/tz.load() overwrite seeds with real data,
+// and registry-clearing (as the upstream test suite does) behaves
+// identically to clearing loaded data.
+var SEED = {};
+
+(function seedHostRegistries() {
+    var i, norm;
+    for (i = 0; i < seedZoneNames.length; i++) {
+        norm = normalizeName(seedZoneNames[i]);
+        zones[norm] = SEED;
+        names[norm] = seedZoneNames[i];
+    }
+    addLink(seedLinks);
+})();
 
 /************************************
     moment.tz namespace

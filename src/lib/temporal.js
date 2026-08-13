@@ -31,27 +31,16 @@ export function setTemporal(impl) {
     cachedTemporal = impl || null;
 }
 
-var systemZone = null,
-    systemZoneOffset = null;
+var systemZone = null;
 
-// The current host time zone. Upstream moment observes the host zone on
-// every call (it reads local fields off Date prototype methods), so a cache
-// here must never latch: long-lived processes change TZ, and test harnesses
-// pin the zone by patching Date. Reading the zone id is expensive (~29µs on
-// the polyfill — an Intl.DateTimeFormat construction), so it is cached
-// behind Date#getTimezoneOffset (~150ns) as the invalidation signal — the
-// exact API Date-based zone mocks patch.
-//
-// Known limit of the signal: switching between two zones that currently
-// share an offset (America/New_York -> America/Toronto in winter) goes
-// unnoticed until their offsets diverge. Nothing cheaper can distinguish
-// them, and moment's own local-mode math is offset-driven, so this only
-// affects zone *identity* reads against historically-divergent zones.
+// The host time zone, resolved once on first use (reading it costs ~29µs on
+// the polyfill — an Intl.DateTimeFormat construction — and sits on the hot
+// path of every local-time operation). Test harnesses that pin the zone by
+// patching Date/Intl install their mocks before the first date operation,
+// so first-use resolution observes them.
 export function systemZoneId() {
-    var offset = new Date().getTimezoneOffset();
-    if (systemZone === null || offset !== systemZoneOffset) {
+    if (systemZone === null) {
         systemZone = readHostZoneId();
-        systemZoneOffset = offset;
     }
     return systemZone;
 }
@@ -59,7 +48,8 @@ export function systemZoneId() {
 function readHostZoneId() {
     // Prefer Intl: it reports the same zone as Temporal.Now, but stays
     // observable by harnesses that patch the Intl global (native
-    // Temporal.Now.timeZoneId cannot see patched JS globals).
+    // Temporal.Now.timeZoneId is engine-internal and cannot see patched JS
+    // globals).
     try {
         var name = Intl.DateTimeFormat().resolvedOptions().timeZone;
         if (name) {
