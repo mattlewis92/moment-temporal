@@ -81,34 +81,86 @@ function nextTransition(ms, zoneId) {
 
 
 // Format an abbreviation the way tzdata does where Intl gives us a usable
-// short name ("EST", "PDT"), and fall back to tzdata's numeric convention
+// short name ("EST", "NZDT"), and fall back to tzdata's numeric convention
 // ("+0530", "-03") where Intl only offers a localized GMT offset.
-var abbrFormatters = {};
+//
+// CLDR only defines alphabetic short names in the locales of the regions
+// that use them (en-US has no name for Pacific/Auckland; en-NZ says "NZDT"),
+// so each zone picks the first candidate locale that yields an alphabetic
+// abbreviation for it.
+var ABBR_LOCALES = [
+        'en-US',
+        'en-CA',
+        'en-GB',
+        'en-IE',
+        'en-AU',
+        'en-NZ',
+        'en-IN',
+        'en-PK',
+        'en-BD',
+        'en-ZA',
+    ],
+    ABBR_PROBES = [Date.UTC(2024, 0, 15), Date.UTC(2024, 6, 15)],
+    abbrFormatters = {};
 
-function abbrAt(ms, zoneId) {
-    var fmt = abbrFormatters[zoneId],
-        parts,
-        i,
-        name = '';
-    if (!fmt) {
-        try {
-            fmt = abbrFormatters[zoneId] = new Intl.DateTimeFormat('en-US', {
-                timeZone: zoneId,
-                timeZoneName: 'short',
-            });
-        } catch (e) {
-            abbrFormatters[zoneId] = null;
+function makeAbbrFormatter(locale, zoneId) {
+    try {
+        return new Intl.DateTimeFormat(locale, {
+            timeZone: zoneId,
+            timeZoneName: 'short',
+        });
+    } catch (e) {
+        return null;
+    }
+}
+
+function shortNameAt(fmt, ms) {
+    var parts = fmt.formatToParts(new Date(ms)),
+        i;
+    for (i = 0; i < parts.length; i++) {
+        if (parts[i].type === 'timeZoneName') {
+            return parts[i].value;
         }
     }
-    if (fmt) {
-        parts = fmt.formatToParts(new Date(ms));
-        for (i = 0; i < parts.length; i++) {
-            if (parts[i].type === 'timeZoneName') {
-                name = parts[i].value;
-                break;
+    return '';
+}
+
+function isAlphabeticAbbr(name) {
+    return (
+        /^[A-Za-z]{2,6}$/.test(name) && name !== 'GMT' && name !== 'UTC'
+    );
+}
+
+function abbrFormatterFor(zoneId) {
+    if (zoneId in abbrFormatters) {
+        return abbrFormatters[zoneId];
+    }
+    var fallback = null,
+        i,
+        j,
+        fmt;
+    for (i = 0; i < ABBR_LOCALES.length; i++) {
+        fmt = makeAbbrFormatter(ABBR_LOCALES[i], zoneId);
+        if (!fmt) {
+            continue;
+        }
+        if (fallback === null) {
+            fallback = fmt;
+        }
+        for (j = 0; j < ABBR_PROBES.length; j++) {
+            if (isAlphabeticAbbr(shortNameAt(fmt, ABBR_PROBES[j]))) {
+                abbrFormatters[zoneId] = fmt;
+                return fmt;
             }
         }
     }
+    abbrFormatters[zoneId] = fallback;
+    return fallback;
+}
+
+function abbrAt(ms, zoneId) {
+    var fmt = abbrFormatterFor(zoneId),
+        name = fmt ? shortNameAt(fmt, ms) : '';
     if (!name || name === 'GMT' || name === 'UTC') {
         return zoneId === 'UTC' || /^Etc\/UTC|^Etc\/Universal/i.test(zoneId)
             ? 'UTC'

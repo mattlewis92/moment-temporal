@@ -385,13 +385,21 @@ function rebuildGuess() {
     // use Intl API when available and returning valid time zone
     try {
         var intlName = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if (intlName && intlName.length > 3) {
+        if (intlName) {
+            // some hosts report bare offsets for offset-style TZ env values
+            // (e.g. TZ=GMT -> "+00:00"); give the zero offset its real name
+            if (/^[+-]00:?00$/.test(intlName)) {
+                intlName = 'UTC';
+            }
             var name = names[normalizeName(intlName)];
             if (name) {
                 return name;
             }
             // Without loaded data, trust the host: if Temporal can resolve
-            // the reported zone we can serve it directly.
+            // the reported zone we can serve it directly. (This replaces
+            // upstream's `length > 3` heuristic, which predates being able
+            // to validate candidates against the host database and wrongly
+            // rejected short-but-real names like "UTC" and "GMT".)
             if (resolveZoneId(intlName)) {
                 return intlName;
             }

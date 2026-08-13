@@ -127,11 +127,12 @@ bundle cost.
   enumeration without data, `Intl.supportedValuesOf('timeZone')` is the
   platform's list. Zone→country mappings aren't exposed by any web API, so
   `zone.countries()`/`zonesForCountry()` genuinely need loaded data.
-- Zone **abbreviations** (`z`/`zz` tokens) are ICU-derived: familiar ones like
-  `EST`/`EDT`/`GMT`/`BST` match tzdata, but zones for which ICU only offers a
-  localized GMT offset render numerically (`+04`, `+0530`, `AEDT` → `+11`).
+- Zone **abbreviations** (`z`/`zz` tokens) are CLDR-derived, using a locale
+  matched to each zone's region (`EST`, `NZDT`, `AEST`, `BST`, `IST`, `CET`,
+  … all match tzdata). Zones for which CLDR defines no alphabetic short name
+  anywhere render in tzdata's numeric convention instead (`+04`, `+0530`).
   Offsets and instants are always correct; load data if you need tzdata's
-  exact abbreviation strings.
+  exact abbreviation strings for every zone.
 - `zone.untils/offsets/abbrs` arrays of fallback zones are materialized
   lazily over 1800–2040 (`parse()`/`utcOffset()` remain correct outside that
   horizon).
