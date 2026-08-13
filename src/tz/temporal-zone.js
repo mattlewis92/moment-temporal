@@ -283,12 +283,24 @@ function materialize(zone) {
 TemporalZone.prototype = {
     // moment-timezone Zone interface -------------------------------------
 
+    // Invalid moments carry a NaN timestamp; Temporal.Instant would throw on
+    // it, so each entry point degrades the way callers already handle for
+    // data-backed zones (moment's invalid-moment guards discard the result).
+
     utcOffset: function (mom) {
-        return offsetWestAt(+mom, this._zoneId);
+        var ms = +mom;
+        if (!isFinite(ms)) {
+            return NaN;
+        }
+        return offsetWestAt(ms, this._zoneId);
     },
 
     abbr: function (mom) {
-        return abbrAt(+mom, this._zoneId);
+        var ms = +mom;
+        if (!isFinite(ms)) {
+            return '';
+        }
+        return abbrAt(ms, this._zoneId);
     },
 
     offset: function (mom) {
@@ -305,6 +317,9 @@ TemporalZone.prototype = {
     // module) — matches data-backed zones bit for bit.
     parse: function (timestamp) {
         var target = +timestamp;
+        if (!isFinite(target)) {
+            return NaN;
+        }
         if (target >= ENUM_END - PARSE_WINDOW) {
             // beyond the materialized horizon: reconstruct the eras around
             // the target on the fly (rule-based zones transition at most

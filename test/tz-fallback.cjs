@@ -80,4 +80,37 @@ assert.match(
 );
 pass++;
 
+// --- invalid inputs with a default zone set ---------------------------------
+// updateOffset runs on every construction; the Temporal-backed zone must
+// tolerate the NaN timestamps invalid moments carry instead of letting
+// Temporal.Instant throw. Upstream moment-timezone returns isValid=false
+// for all of these.
+const oldSuppress = moment.suppressDeprecationWarnings;
+moment.suppressDeprecationWarnings = true; // 'garbage' hits the Date fallback
+moment.tz.setDefault('America/New_York');
+try {
+    for (const [label, input] of [
+        ['new Date(NaN)', new Date(NaN)],
+        ["new Date('garbage')", new Date('garbage')],
+        ['NaN', NaN],
+        ["'garbage'", 'garbage'],
+    ]) {
+        const m = moment(input);
+        check(m.isValid(), false, 'invalid moment with default zone: ' + label);
+        check(m.format(), 'Invalid date', 'formats as Invalid date: ' + label);
+    }
+    // invalid moments through the explicit .tz() path must not throw either
+    const inv = moment(NaN).tz('America/New_York');
+    check(inv.isValid(), false, 'invalid moment via .tz()');
+    check(inv.zoneAbbr(), '', 'invalid moment zoneAbbr');
+    check(
+        isNaN(moment.tz.zone('America/New_York').parse(NaN)),
+        true,
+        'zone.parse(NaN) is NaN'
+    );
+} finally {
+    moment.tz.setDefault(null);
+    moment.suppressDeprecationWarnings = oldSuppress;
+}
+
 console.log('tz-fallback: ' + pass + ' checks passed');
